@@ -63,7 +63,21 @@ namespace ShoppingCartServiceTests.tests
         [Fact]
         public void CalculateTotals_StandardCustomerWithMultipleProducts_TotalEqualsCostPlusShipping()
         {
-            // TODO: check for multiple products
+            var originAddress = new Address { Country = "country", City = "city", Street = "street" };
+            var destinationAddress = new Address { Country = "country", City = "city2", Street = "street2" };
+
+            var shippingCalculator = new ShippingCalculator(originAddress);
+            var sut = new CheckOutEngine(shippingCalculator, _mapper);
+            var cart = new Cart
+            {
+                CustomerType = CustomerType.Standard,
+                Items = new() { new Item { ProductId = "prod-1", Price = productPrice, Quantity = productQuantity }, new Item { ProductId = "prod-2", Price = 4, Quantity = productQuantity } },
+                ShippingAddress = destinationAddress
+            };
+
+            var result = sut.CalculateTotals(cart);
+
+            result.Total.Should().Be((productPrice * productQuantity) + (4 * productQuantity) + result.ShippingCost);
         }
 
         [Fact]
