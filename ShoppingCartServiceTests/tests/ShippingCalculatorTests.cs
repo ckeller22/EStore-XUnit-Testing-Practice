@@ -8,321 +8,112 @@ using System.Text;
 using System.Threading.Tasks;
 using Xunit;
 using FluentAssertions;
+using ShoppingCartServiceTests.builders;
 
 namespace ShoppingCartServiceTests.tests
 {
     public class ShippingCalculatorTests
     {
-        #region Same city 
-        [Fact]
-        public void CalculateShippingCosts_SameCityStandardShippingNoItems_Return0()
+        private static Item ITEM_1 = new ItemBuilder().WithQuantity(1).Build();
+        private static Item ITEM_2 = new ItemBuilder().WithQuantity(5).Build();
+        
+        public static List<object[]> ItemListsWithExpectedQuantity()
         {
-            var address = new Address { City = "city", Country = "country", Street = "street" };
+            return new()
+            {
+                new object[] { new List<Item>(), 0 },
+                new object[] { new List<Item>() { ITEM_1 }, ITEM_1.Quantity },
+                new object[] { new List<Item>() { ITEM_2 }, ITEM_2.Quantity },
+                new object[] { new List<Item>() { ITEM_1, ITEM_2 }, (ITEM_1.Quantity + ITEM_2.Quantity) }
+            };
+        }
 
+        #region Same city
+        
+        [Theory]
+        [MemberData(nameof(ItemListsWithExpectedQuantity))]
+        public void SameCity_StandardShipping(List<Item> items, uint expected)
+        {
+            var address = new AddressBuilder().Build();
+            var shippingAddress = new AddressBuilder().WithStreet("street2").Build();
             var sut = new ShippingCalculator(address);
 
-            var cart = new Cart
-            {
-                CustomerType = CustomerType.Standard,
-                ShippingMethod = ShippingMethod.Standard,
-                Items = new List<Item>(),
-                ShippingAddress = new Address { City = "city", Country = "country", Street = "street2" }
-            };
+
+            var cart = new CartBuilder().WithShippingAddress(shippingAddress).WithItems(items).Build();
 
             var result = sut.CalculateShippingCost(cart);
 
-            result.Should().Be(0);
+            result.Should().Be(ShippingCalculator.SameCityRate * expected);
         }
 
-        [Fact]
-        public void CalculateShippingCosts_SameCityStandardShippingOneItem_Return1()
-        {
-            var address = new Address { City = "city", Country = "country", Street = "street" };
-
-            var sut = new ShippingCalculator(address);
-
-            var cart = new Cart
-            {
-                CustomerType = CustomerType.Standard,
-                ShippingMethod = ShippingMethod.Standard,
-                Items = new List<Item> { new Item { Quantity = 1 } },
-                ShippingAddress = new Address { City = "city", Country = "country", Street = "street2" }
-            };
-
-            var result = sut.CalculateShippingCost(cart);
-
-            result.Should().Be(ShippingCalculator.SameCityRate * 1);
-        }
-
-        [Fact]
-        public void CalculateShippingCosts_SameCityStandardShippingMultipleItems_ReturnQuantityOfItems()
-        {
-            var address = new Address { City = "city", Country = "country", Street = "street" };
-
-            var sut = new ShippingCalculator(address);
-
-            var cart = new Cart
-            {
-                CustomerType = CustomerType.Standard,
-                ShippingMethod = ShippingMethod.Standard,
-                Items = new List<Item> { new Item { Quantity = 1 }, new Item { Quantity = 5 } },
-                ShippingAddress = new Address { City = "city", Country = "country", Street = "street2" }
-            };
-
-            var result = sut.CalculateShippingCost(cart);
-
-            result.Should().Be(ShippingCalculator.SameCityRate * (1 + 5));
-        }
 
         #endregion
 
         #region Same country 
-        
-        [Fact]
-        public void CalculateShippingCosts_SameCountryStandardShippingNoItems_Returns0()
+        [Theory]
+        [MemberData(nameof(ItemListsWithExpectedQuantity))]
+        public void SameCountry_StandardShipping(List<Item> items, uint expected)
         {
-            var address = new Address { City = "city", Country = "country", Street = "street" };
-
+            var address = new AddressBuilder().Build();
+            var shippingAddress = new AddressBuilder().WithCity("city2").Build();
             var sut = new ShippingCalculator(address);
 
-            var cart = new Cart
-            {
-                CustomerType = CustomerType.Standard,
-                Items = new List<Item> {},
-                ShippingAddress = new Address { City = "city2", Country = "country", Street = "street2" }
-            };
+
+            var cart = new CartBuilder().WithShippingAddress(shippingAddress).WithItems(items).Build();
 
             var result = sut.CalculateShippingCost(cart);
 
-            result.Should().Be(0);
-        }
-
-        [Fact]
-        public void CalculateShippingCosts_SameCountryStandardShippingOneItemQuantity1_ReturnQuantityMultipliedBySameCountryRate()
-        {
-            var address = new Address { City = "city", Country = "country", Street = "street" };
-
-            var sut = new ShippingCalculator(address);
-
-            var cart = new Cart
-            {
-                CustomerType = CustomerType.Standard,
-                Items = new List<Item> { new Item { Quantity = 1 } },
-                ShippingAddress = new Address { City = "city2", Country = "country", Street = "street2" }
-            };
-
-            var result = sut.CalculateShippingCost(cart);
-
-            result.Should().Be(ShippingCalculator.SameCountryRate * 1);
-        }
-
-        [Fact]
-        public void CalculateShippingCosts_SameCountryStandardShippingOneItemQuantity5_ReturnQuantityMultipliedBySameCountryRate()
-        {
-            var address = new Address { City = "city", Country = "country", Street = "street" };
-
-            var sut = new ShippingCalculator(address);
-
-            var cart = new Cart
-            {
-                CustomerType = CustomerType.Standard,
-                Items = new List<Item> { new Item { Quantity = 5 } },
-                ShippingAddress = new Address { City = "city2", Country = "country", Street = "street2" }
-            };
-
-            var result = sut.CalculateShippingCost(cart);
-
-            result.Should().Be(ShippingCalculator.SameCountryRate * 5);
-        }
-
-        [Fact]
-        public void CalculateShippingCosts_SameCountryStandardShippingMultipleItems_ReturnQuantityMultipliedBySameCountryRate()
-        {
-            var address = new Address { City = "city", Country = "country", Street = "street" };
-
-            var sut = new ShippingCalculator(address);
-
-            var cart = new Cart
-            {
-                CustomerType = CustomerType.Standard,
-                Items = new List<Item> { new Item { Quantity = 1 }, new Item { Quantity = 3 } },
-                ShippingAddress = new Address { City = "city2", Country = "country", Street = "street2" }
-            };
-
-            var result = sut.CalculateShippingCost(cart);
-
-            result.Should().Be(ShippingCalculator.SameCountryRate * (1 + 3));
+            result.Should().Be(ShippingCalculator.SameCountryRate * expected);
         }
 
         #endregion
 
         #region International
-
-        [Fact]
-        public void CalculateShippingCosts_InternationalStandardShippingNoItems_Returns0()
+        [Theory]
+        [MemberData(nameof(ItemListsWithExpectedQuantity))]
+        public void International_StandardShipping(List<Item> items, uint expected)
         {
-            var address = new Address { City = "city", Country = "country", Street = "street" };
-
+            var address = new AddressBuilder().Build();
+            var shippingAddress = new AddressBuilder().WithCountry("country2").Build();
             var sut = new ShippingCalculator(address);
 
-            var cart = new Cart
-            {
-                CustomerType = CustomerType.Standard,
-                Items = new List<Item> { },
-                ShippingAddress = new Address { City = "city2", Country = "country2", Street = "street2" }
-            };
+
+            var cart = new CartBuilder().WithShippingAddress(shippingAddress).WithItems(items).Build();
 
             var result = sut.CalculateShippingCost(cart);
 
-            result.Should().Be(0);
+            result.Should().Be(ShippingCalculator.InternationalShippingRate * expected);
         }
 
-        [Fact]
-        public void CalculateShippingCosts_InternationalStandardShippingOneItemQuantity1_ReturnsQuantityTimesRate()
-        {
-            var address = new Address { City = "city", Country = "country", Street = "street" };
-
-            var sut = new ShippingCalculator(address);
-
-            var cart = new Cart
-            {
-                CustomerType = CustomerType.Standard,
-                Items = new List<Item> { new Item { Quantity = 1} },
-                ShippingAddress = new Address { City = "city2", Country = "country2", Street = "street2" }
-            };
-
-            var result = sut.CalculateShippingCost(cart);
-
-            result.Should().Be(ShippingCalculator.InternationalShippingRate * 1);
-        }
-
-        [Fact]
-        public void CalculateShippingCosts_InternationalStandardShippingOneItemQuantity5_ReturnsQuantityTimesRate()
-        {
-            var address = new Address { City = "city", Country = "country", Street = "street" };
-
-            var sut = new ShippingCalculator(address);
-
-            var cart = new Cart
-            {
-                CustomerType = CustomerType.Standard,
-                Items = new List<Item> { new Item { Quantity = 5 } },
-                ShippingAddress = new Address { City = "city2", Country = "country2", Street = "street2" }
-            };
-
-            var result = sut.CalculateShippingCost(cart);
-
-            result.Should().Be(ShippingCalculator.InternationalShippingRate * 5);
-        }
-
-        [Fact]
-        public void CalculateShippingCosts_InternationalStandardShippingMultipleItems_ReturnsQuantityTimesRate()
-        {
-            var address = new Address { City = "city", Country = "country", Street = "street" };
-
-            var sut = new ShippingCalculator(address);
-
-            var cart = new Cart
-            {
-                CustomerType = CustomerType.Standard,
-                Items = new List<Item> { new Item { Quantity = 2 }, new Item { Quantity = 3 } },
-                ShippingAddress = new Address { City = "city2", Country = "country2", Street = "street2" }
-            };
-
-            var result = sut.CalculateShippingCost(cart);
-
-            result.Should().Be(ShippingCalculator.InternationalShippingRate * (2 + 3));
-        }
+        
         #endregion
 
         #region Shipping Speeds
-
-        [Fact]
-        public void CalculateShippingCosts_InternationalStandardShippingOneItemQuantity1_ReturnsQuantityTimesInternationalRateTimesStandardShipping()
+        public static List<object[]> ShippingMethodsWithRates()
         {
-            var address = new Address { City = "city", Country = "country", Street = "street" };
-
-            var sut = new ShippingCalculator(address);
-
-            var cart = new Cart
+            return new()
             {
-                CustomerType = CustomerType.Standard,
-                ShippingMethod = ShippingMethod.Standard,
-                Items = new List<Item> { new Item { Quantity = 1 } },
-                ShippingAddress = new Address { City = "city2", Country = "country2", Street = "street2" }
+                new object[] { ShippingMethod.Standard, 1.0 },
+                new object[] { ShippingMethod.Expedited, 1.2 },
+                new object[] { ShippingMethod.Priority, 2.0 },
+                new object[] { ShippingMethod.Express, 2.5 }
             };
-
-            var result = sut.CalculateShippingCost(cart);
-
-            result.Should().Be(ShippingCalculator.InternationalShippingRate * 1.0 * 1);
-
-            
         }
 
-        [Fact]
-        public void CalculateShippingCosts_InternationalExpeditedShippingOneItemQuantity1_ReturnsQuantityTimesInternationalRateTimesExpeditedShipping()
+        [Theory]
+        [MemberData(nameof(ShippingMethodsWithRates))]
+        public void CalculateShippingCosts_InternationalShipping_ReturnsShippingRateTimesShippingSpeed(ShippingMethod shippingMethod, double shippingSpeedRate)
         {
-            var address = new Address { City = "city", Country = "country", Street = "street" };
-
+            var address = new AddressBuilder().Build();
+            var shippingAddress = new AddressBuilder().WithCity("city2").WithCountry("country2").Build();
             var sut = new ShippingCalculator(address);
 
-            var cart = new Cart
-            {
-                CustomerType = CustomerType.Standard,
-                ShippingMethod = ShippingMethod.Expedited,
-                Items = new List<Item> { new Item { Quantity = 1 } },
-                ShippingAddress = new Address { City = "city2", Country = "country2", Street = "street2" }
-            };
+            var items = new List<Item> { new ItemBuilder().Build() };
+            var cart = new CartBuilder().WithShippingAddress(shippingAddress).WithShippingMethod(shippingMethod).WithItems(items).Build();
 
             var result = sut.CalculateShippingCost(cart);
 
-            result.Should().Be(ShippingCalculator.InternationalShippingRate * 1.2 * 1);
-
-
-        }
-
-        [Fact]
-        public void CalculateShippingCosts_InternationalPriorityShippingOneItemQuantity1_ReturnsQuantityTimesInternationalRateTimesPriorityShipping()
-        {
-            var address = new Address { City = "city", Country = "country", Street = "street" };
-
-            var sut = new ShippingCalculator(address);
-
-            var cart = new Cart
-            {
-                CustomerType = CustomerType.Standard,
-                ShippingMethod = ShippingMethod.Priority,
-                Items = new List<Item> { new Item { Quantity = 1 } },
-                ShippingAddress = new Address { City = "city2", Country = "country2", Street = "street2" }
-            };
-
-            var result = sut.CalculateShippingCost(cart);
-
-            result.Should().Be(ShippingCalculator.InternationalShippingRate * 2.0 * 1);
-
-
-        }
-
-        [Fact]
-        public void CalculateShippingCosts_InternationalExpressShippingOneItemQuantity1_ReturnsQuantityTimesInternationalRateTimesExpressShipping()
-        {
-            var address = new Address { City = "city", Country = "country", Street = "street" };
-
-            var sut = new ShippingCalculator(address);
-
-            var cart = new Cart
-            {
-                CustomerType = CustomerType.Standard,
-                ShippingMethod = ShippingMethod.Express,
-                Items = new List<Item> { new Item { Quantity = 1 } },
-                ShippingAddress = new Address { City = "city2", Country = "country2", Street = "street2" }
-            };
-
-            var result = sut.CalculateShippingCost(cart);
-
-            result.Should().Be(ShippingCalculator.InternationalShippingRate * 2.5 * 1);
-
-
+            result.Should().Be(ShippingCalculator.InternationalShippingRate * shippingSpeedRate * 1);
         }
 
         #endregion
