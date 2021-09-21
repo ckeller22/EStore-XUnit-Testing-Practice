@@ -5,6 +5,7 @@ using ShoppingCartService.Models;
 using ShoppingCartService.BusinessLogic;
 using AutoMapper;
 using ShoppingCartService.Mapping;
+using ShoppingCartServiceTests.builders;
 
 namespace ShoppingCartServiceTests.tests
 {
@@ -23,28 +24,28 @@ namespace ShoppingCartServiceTests.tests
             _mapper = config.CreateMapper();
         }
 
-        [Fact]
-        public void CalculateTotals_StandardCustomer_NoCustomerDiscount()
+        [Theory]
+        [InlineData(CustomerType.Premium, 10)]
+        [InlineData(CustomerType.Standard, 0)]
+        public void CalculateTotals_DiscountBasedOnCustomerType(CustomerType customerType, uint discount)
         {
-            var address = new Address { Country = "country", City = "city", Street = "street" };
+            var address = new AddressBuilder().Build();
             var shippingCalculator = new ShippingCalculator(address);
             var sut = new CheckOutEngine(shippingCalculator, _mapper);
-            var cart = new Cart {
-                CustomerType = CustomerType.Standard,
-                Items = new() { new Item { ProductId = "prod-1", Price = productPrice, Quantity = productQuantity } },
-                ShippingAddress = address
-            };
-            
+
+            var cart = new CartBuilder().WithCustomerType(customerType).WithShippingAddress(address).Build();
+
             var result = sut.CalculateTotals(cart);
 
-            result.CustomerDiscount.Should().Be(0);
+            result.CustomerDiscount.Should().Be(discount);
         }
+
 
         [Fact]
         public void CalculateTotals_StandardCustomer_TotalEqualsCostPlusShipping()
         {
-            var originAddress = new Address { Country = "country", City = "city", Street = "street" };
-            var destinationAddress = new Address { Country = "country", City = "city2", Street = "street2" };
+            var originAddress = new AddressBuilder().Build();
+            var destinationAddress = new AddressBuilder().WithCity("city2").WithStreet("street2").Build();
 
             var shippingCalculator = new ShippingCalculator(originAddress);
             var sut = new CheckOutEngine(shippingCalculator, _mapper);
@@ -63,8 +64,8 @@ namespace ShoppingCartServiceTests.tests
         [Fact]
         public void CalculateTotals_StandardCustomerWithMultipleProducts_TotalEqualsCostPlusShipping()
         {
-            var originAddress = new Address { Country = "country", City = "city", Street = "street" };
-            var destinationAddress = new Address { Country = "country", City = "city2", Street = "street2" };
+            var originAddress = new AddressBuilder().Build();
+            var destinationAddress = new AddressBuilder().WithCity("city2").WithStreet("street2").Build();
 
             var shippingCalculator = new ShippingCalculator(originAddress);
             var sut = new CheckOutEngine(shippingCalculator, _mapper);
@@ -81,28 +82,10 @@ namespace ShoppingCartServiceTests.tests
         }
 
         [Fact]
-        public void CalculateTotal_PremiumCustomer_HasDiscount()
-        {
-            var address = new Address { Country = "country", City = "city", Street = "street" };
-            var shippingCalculator = new ShippingCalculator(address);
-            var sut = new CheckOutEngine(shippingCalculator, _mapper);
-            var cart = new Cart
-            {
-                CustomerType = CustomerType.Premium,
-                Items = new() { new Item { ProductId = "prod-1", Price = 2, Quantity = 3 } },
-                ShippingAddress = address
-            };
-
-            var result = sut.CalculateTotals(cart);
-
-            result.CustomerDiscount.Should().Be(10);
-        }
-
-        [Fact]
         public void CalculateTotal_PremiumCustomer_TotalEqualsCostPlusShippingMinusDiscount()
         {
-            var originAddress = new Address { Country = "country", City = "city", Street = "street" };
-            var destinationAddress = new Address { Country = "country", City = "city2", Street = "street2" };
+            var originAddress = new AddressBuilder().Build();
+            var destinationAddress = new AddressBuilder().WithCity("city2").WithStreet("street2").Build();
 
             var shippingCalculator = new ShippingCalculator(originAddress);
             var sut = new CheckOutEngine(shippingCalculator, _mapper);
